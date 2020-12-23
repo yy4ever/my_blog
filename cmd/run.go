@@ -8,11 +8,11 @@ import (
 )
 
 func init() {
+	conf.DefaultInit()
+	user_manager.InitData()
 }
 
 func main() {
-	conf.DefaultInit()
-	user_manager.InitData()
 	engine := router.InitRouter()
 	fmt.Print("Service starting.")
 	engine.Run(conf.Cnf.PORT)
