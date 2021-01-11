@@ -1,9 +1,6 @@
 package router
 
 import (
-	"fmt"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"my_blog/common/conf"
 	perm "my_blog/common/define/permission"
@@ -16,12 +13,9 @@ import (
 func InitRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(utils.AccessLogger(), m.Recover())
-	store, _ := redis.NewStore(10, "tcp", fmt.Sprintf("%s:6379", conf.Cnf.RedisHost),
-		conf.Cnf.RedisPwd, []byte(conf.Cnf.SecretKey))
-	r.Use(sessions.Sessions("blog.session", store))
-
+	conf.InitSession(r)
 	loginHandlers := user.Handlers()
-	u := r.Group("/u")
+	u := r.Group("/user")
 	{
 		u.POST("", loginHandlers.Register)
 		u.GET("", loginHandlers.Current)
@@ -42,7 +36,9 @@ func InitRouter() *gin.Engine {
 	{
 		p.POST("", m.Permission(), postHandlers.Add)
 		p.GET("", m.Permission(), postHandlers.List)
+		p.GET("/:post_id", m.Permission(), postHandlers.List)
 		p.DELETE("/:post_id", m.Permission(perm.REMOVE), postHandlers.List)
+		p.POST("/:post_id/vote", m.Permission(), postHandlers.Vote)
 		p.POST("/:post_id/comment", m.Permission(), postHandlers.AddComment)
 		p.GET("/:post_id/comment", m.Permission(), postHandlers.ListComment)
 		p.PUT("/:post_id/comment/:comment_id", m.Permission(), postHandlers.DisableComment)

@@ -3,6 +3,7 @@ package post
 import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"my_blog/common/conf"
 	"my_blog/common/define/permission"
 	"my_blog/common/entity"
 	"my_blog/common/models"
@@ -16,6 +17,7 @@ type IPost interface {
 	Add(c *gin.Context)
 	List(c *gin.Context)
 	Remove(c *gin.Context)
+	Vote(c *gin.Context)
 	AddComment(c *gin.Context)
 	ListComment(c *gin.Context)
 	DisableComment(c *gin.Context)
@@ -49,12 +51,31 @@ func (p Post) List(c *gin.Context) {
 	errRes := utils.ErrRes{Ctx:c}
 	sess := sessions.Default(c)
 	userID, _ := sess.Get("User").(int)
-	posts, err := post_manager.List(userID, c.Query("offset"), c.Query("limit"))
-	if err != nil {
-		errRes.Response(500, 500, "Internal error")
-		return
+	postID := c.Param("post_id")
+	if postID != "" {
+		postID, err := strconv.Atoi(postID)
+		post, err := post_manager.GetCachePost(postID)
+		if err != nil {
+			conf.Log.Error("Failed to get post from redis. err: %s", err)
+		} else {
+			c.JSON(200, post)
+			return
+		}
+		post, err = post_manager.Get(postID)
+		if err != nil {
+			errRes.Response(500, 500, "Internal error")
+			return
+		}
+		post_manager.CachePost(&post)
+		c.JSON(200, post)
+	} else {
+		posts, err := post_manager.List(userID, c.Query("offset"), c.Query("limit"))
+		if err != nil {
+			errRes.Response(500, 500, "Internal error")
+			return
+		}
+		c.JSON(200, posts)
 	}
-	c.JSON(200, posts)
 }
 
 func (p Post) Remove(c *gin.Context) {
@@ -137,3 +158,21 @@ func (p Post) ListComment(c *gin.Context) {
 	}
 	c.JSON(200, comments)
 }
+
+func (p Post) Vote(c *gin.Context) {
+	errRes := utils.ErrRes{Ctx:c}
+	sess := sessions.Default(c)
+	userID, _ := sess.Get("User").(int)
+	postID, err := strconv.Atoi(c.Param("post_id"))
+	if err != nil {
+		errRes.Response(400, 400, "Invalid params")
+		return
+	}
+	err = post_manager.Vote(postID, userID)
+	if err != nil {
+		errRes.Response(500, 500, "Internal error")
+		return
+	}
+	c.JSON(200, "")
+}
+

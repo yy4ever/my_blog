@@ -12,6 +12,7 @@ type Post struct {
 	CreatedAt    JSONTime  `db:"created_at" json:"created_at"`
 	CommentCount int       `db:"comment_count" json:"comment_count"`
 	Deleted      int       `db:"deleted" json:"deleted"`
+	Url			 string 	   `db:"-" json:"url"`
 }
 
 type Comment struct {

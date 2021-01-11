@@ -1,13 +1,16 @@
 package post_manager
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gomarkdown/markdown"
 	"github.com/microcosm-cc/bluemonday"
 	"my_blog/common/conf"
 	e "my_blog/common/entity"
 	"my_blog/common/models"
+	"my_blog/control/post/define"
 	"my_blog/control/user/user_manager"
+	"time"
 )
 
 var log conf.Logger
@@ -60,6 +63,7 @@ func List(userID int, offset, limit string) (gin.H, error) {
 		for _, u := range users {
 			if u.ID == c.AuthorID {
 				posts[i].Author = gin.H{"name": u.Name, "uuid": u.Uuid}
+				posts[i].Url = fmt.Sprintf("/post/%d", c.ID)
 				break
 			}
 		}
@@ -93,8 +97,14 @@ func Get(PostID int) (models.Post, error) {
 	sql := "SELECT * FROM post WHERE id = ?"
 	err := conf.DB.Get(&post, sql, PostID)
 	if err != nil {
-		log.Error("Db insert error.\nsql: %s\nerr: %s", sql, err)
+		log.Error("Db select error.\nsql: %s\nerr: %s", sql, err)
 	}
+	author, err := user_manager.GetUserByID(post.AuthorID)
+	if err != nil {
+		return models.Post{}, err
+	}
+	post.Author = gin.H{"name": author.Name, "uuid": author.Uuid}
+	post.Url = fmt.Sprintf("/post/%d", post.ID)
 	return post, err
 }
 
@@ -151,5 +161,63 @@ func ListComment(postID, userID int) ([]models.Comment, error) {
 		}
 	}
 	return comments, err
+}
+
+func CachePost(post *models.Post) {
+	postKey := fmt.Sprintf("post:%d", post.ID)
+	exist, err := conf.Redis.Exist(postKey)
+	if err != nil {
+		conf.Log.Error("Redis exist cmd error, err: %s", err)
+		return
+	}
+	if exist {
+		return
+	}
+	err = conf.Redis.SetJson(postKey, post)
+	if err != nil {
+		conf.Log.Error("Failed to cache post, err: %s", err)
+	}
+	score := time.Now().Unix()+define.VOTE_SCORE
+	reply, err := conf.Redis.Do("ZADD", "score:", score, postKey)
+	conf.Log.Info("Cache post (%s), reply (%#v)", postKey, reply)
+}
+
+func GetCachePost(postID int) (models.Post, error) {
+	var post models.Post
+	err := conf.Redis.GetJson(fmt.Sprintf("post:%d", postID), &post)
+	if err != nil {
+		return models.Post{}, err
+	}
+	return post, err
+}
+
+func IsVoted(postID, userID int) (bool, error) {
+	key := fmt.Sprintf("voted:%d", postID)
+	voted, err := conf.Redis.Do("SADD", key, userID)
+	if err != nil {
+		conf.Log.Error("Failed to exec: SADD. err: %s", err)
+		return false, err
+	}
+	return voted != 1, err
+}
+
+func Vote(postID, userID int) (err error) {
+	postKey := fmt.Sprintf("post:%d", postID)
+	isVoted, err := IsVoted(postID, userID)
+	if isVoted {
+		return
+	}
+	_, err = conf.Redis.Do("ZINCRBY", "score:", postKey, define.VOTE_SCORE)
+	if err != nil {
+		conf.Log.Error("Failed to exec: ZINCRBY. err: %s", err)
+		return
+	}
+	voteKey := fmt.Sprintf("vote_post:%d", postID)
+	_, err = conf.Redis.Do("INCR", voteKey)
+	if err != nil {
+		conf.Log.Error("Failed to exec: INCR. err: %s", err)
+		return
+	}
+	return
 }
 

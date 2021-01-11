@@ -19,8 +19,8 @@ func (l Logger) Debug(_fmt string, msg interface{}) {
 	l.entry.Debug(fmt.Sprintf(_fmt, msg))
 }
 
-func (l Logger) Info(_fmt string, msg interface{}) {
-	l.entry.Info(fmt.Sprintf(_fmt, msg))
+func (l Logger) Info(_fmt string, msg ...interface{}) {
+	l.entry.Info(fmt.Sprintf(_fmt, msg...))
 }
 
 func (l Logger) Warn(_fmt string, msg interface{}) {

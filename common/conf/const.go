@@ -8,6 +8,7 @@ type Conf struct {
 	DbPassword           string `yaml:"DbPassword"`
 	RedisHost            string `yaml:"RedisHost"`
 	RedisPwd             string `yaml:"RedisPwd"`
+	RedisConnPoolSize	 int    `yaml:"RedisConnPoolSize"`
 	RedisDb              int    `yaml:"RedisDb"`
 	SecretKey            string `yaml:"SecretKey"`
 	LogFilePath          string `yaml:"LogFilePath"`

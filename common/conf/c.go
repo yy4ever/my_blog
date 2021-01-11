@@ -11,14 +11,15 @@ import (
 )
 
 var (
-	DB  *sqlx.DB
-	Cnf *Conf
+	DB        *sqlx.DB
+	Cnf       *Conf
 )
 
 func DefaultInit() {
 	InitConf()
 	InitLogger("blog")
 	InitDB()
+	InitRedis()
 }
 
 func InitConf() {
