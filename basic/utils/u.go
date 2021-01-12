@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"reflect"
+	"strings"
 )
 
 func PathExists(path string) (bool, error) {
@@ -38,4 +39,38 @@ func FilterString(arr []string, cond func(string) bool) []string {
 		}
 	}
 	return result
+}
+
+func ConcatString(strs ...string) string {
+	var str strings.Builder
+	for _, v := range strs {
+		str.Write([]byte(v))
+	}
+	return str.String()
+}
+
+func IsStringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if (a == nil) != (b == nil) {
+		return false
+	}
+	b = b[:len(a)]
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type StringSet map[string]struct{}
+
+func InitStringSet (elms ...string) StringSet {
+	Set := StringSet{}
+	for _, v := range elms {
+		Set[v] = struct{}{}
+	}
+	return Set
 }
